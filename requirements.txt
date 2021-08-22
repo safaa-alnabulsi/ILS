@@ -1,5 +1,0 @@
-notebook
-Pillow
-numpy
-matplotlib
-opencv-python

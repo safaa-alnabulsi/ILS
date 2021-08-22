@@ -1,0 +1,689 @@
+<!doctype html>
+<html class="no-js">
+
+<head>
+    <meta charset="utf-8">
+    <title>Seminar: Real-time Image Smoothing via Iterative Least Squares</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width">
+    <!-- Place favicon.ico and apple-touch-icon.png in the root directory -->
+    <link href="http://fonts.googleapis.com/css?family=Raleway:300,400,600" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script type="text/javascript" async
+        src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+    <!--<link rel="stylesheet" href="styles/main.37ab405b.css">-->
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.3/styles/default.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.0.3/highlight.min.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+
+<body>
+    <!--[if lt IE 7]>
+<p class="browsehappy">You are using an
+    <strong>outdated</strong> browser. Please
+    <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.
+</p>
+<![endif]-->
+    <div class="container">
+
+        <nav class="navbar">
+            <div class="container">
+                <ul class="navbar-list">
+                    <li class="navbar-item">
+                        <a class="navbar-link" href="#intro">Intro</a>
+                    </li>
+                    <li class="navbar-item">
+                        <a class="navbar-link" href="#problem">Other Smoothing Methods</a>
+                    </li>
+                    <li class="navbar-item">
+                        <a class="navbar-link" href="#ILS">ILS</a>
+                    </li>
+                    <li class="navbar-item">
+                        <a class="navbar-link" href="#results-ILS">Results</a>
+                    </li>
+                    <li class="navbar-item">
+                        <a class="navbar-link" href="#code">Code</a>
+                    </li>
+                    <li class="navbar-item">
+                        <a class="navbar-link" href="#math">Math</a>
+                    </li>
+                    <li class="navbar-item">
+                        <a class="navbar-link" href="#references">References</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <section class="header" id="intro">
+            <h2 class="title">Seminar: Real-time Image Smoothing via Iterative Least Squares</h2>
+            <h6>Seminar by Safaa Alnabulsi (<a
+                    href="mailto:safaa.alnabulsi@campus.tu-berlin.de">safaa.alnabulsi@campus.tu-berlin.de</a>)
+            </h6>
+
+            <div class="row">
+                <p>
+                    Smoothing is a technique in Image processing which is used to reduce noise in Images or to produce a
+                    less pixelated image.
+                    It's an essetinal key which enhances images used in several domains and applications. There are
+                    several
+                    methods and algorithms in the literature which perform smoothing on images e.g. weighted average
+                    based
+                    methods, pyramid based methods, deep learning based methods ..etc
+                    <br>
+                    There is a tradeoff between the smoothing quality and the processing speed: the high smoothing
+                    quality
+                    usually requires a high computational cost which leads to the low processing speed.
+                    <br>
+                    In this paper, we will see a new global optimization based method, named iterative least squares
+                    (ILS),
+                    for efficient edge-preserving image smoothing with much lower computational cost.
+                </p>
+            </div>
+        </section>
+
+
+        <div class="docs-section" id="problem">
+            <h3 class="section-heading">Weighted Average Based Smoothing Methods</h3>
+
+            <p class="section-description">
+                Before digging into this paper's enhancements, let's take a look on the results of other smoothing
+                methods
+                which are used in Opencv
+                You will see from the following results the poor quality of smoothing methods performed by weighted
+                average
+                based methods. <a href="#ref-1">[2]</a>
+            </p>
+
+            <div class="row">
+                <div class="column category" style="text-align: center;">
+                    <h5 class="docs-header">Original Image</h5>
+                    <img class="u-half-width" src="images/opencv/original-flower.png">
+                    <p>
+                    </p>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="column category" style="text-align: center;">
+                    <h5 class="docs-header">Results of weighted average based methods</h5>
+                    <img class="u-max-full-width" src="images/opencv/opencv-filters.png">
+                    <p>
+                    </p>
+                </div>
+            </div>
+
+            <h5> How much noise is reduced? </h5>
+
+            <p class="section-description">
+                After taking a look into the reduced noise results performed by each of the filters above, one will
+                notice
+                that most of the important features of the image are subtracted.
+                That is not optimal as one aims to keep the important features of an image while subtracting only
+                unimportant details i.e. noise.
+                This lead us to a conclusion that those methods, regardless of their small execuation time, are not an
+                optimal way to get the results one aspire to.
+            </p>
+
+            <div class="row">
+                <div class="one-third column category" style="text-align: center;">
+                    <h5 class="docs-header">Averaging - 2D Convolution</h5>
+                    <img class="u-max-full-width" src="images/opencv/averaging.png">
+                </div>
+
+                <div class="one-third column category" style="text-align: center;">
+                    <h5 class="docs-header">Averaging - Blur</h5>
+                    <img class="u-max-full-width" src="images/opencv/blur.png">
+                </div>
+
+                <div class="one-third column category" style="text-align: center;">
+                    <h5 class="docs-header">Gaussian Filtering</h5>
+                    <img class="u-max-full-width" src="images/opencv/gblur.png">
+                </div>
+
+                <div class="one-third column category" style="text-align: center;">
+                    <h5 class="docs-header">Median Filtering</h5>
+                    <img class="u-max-full-width" src="images/opencv/median.png">
+                </div>
+
+                <div class="one-third column category" style="text-align: center;">
+                    <h5 class="docs-header">Bilateral Filtering</h5>
+                    <img class="u-max-full-width" src="images/opencv/bilateral.png">
+                </div>
+            </div>
+
+            </br>
+
+            <h5> Execution Time </h5>
+            <div class="row">
+                <div class="column category" style="text-align: center;">
+                    <table class="u-full-width">
+                        <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th>Execution Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Averaging - 2D Convolution</td>
+                                <td>0.00913</td>
+                            </tr>
+                            <tr>
+                                <td>Averaging - Blur</td>
+                                <td>0.00433</td>
+                            </tr>
+
+                            <tr>
+                                <td>Gaussian Filtering</td>
+                                <td>0.01631</td>
+                            </tr>
+
+                            <tr>
+                                <td>Median Filtering</td>
+                                <td>0.00642</td>
+                            </tr>
+
+                            <tr>
+                                <td>Bilateral Filtering</td>
+                                <td>0.05833</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="docs-section" id="ILS">
+
+            <h3 class="section-heading">Real-time Image Smoothing via Iterative Least Squares</h3>
+
+            <div class="u-pull-right" style="text-align: center; width:300px; margin-left:20px">
+                <img class="u-max-full-width" src="images/ils/original-paper.png">
+                <p>Original Image</p>
+                <img class="u-max-full-width" src="images/ils/ILS-paper.png">
+                <p>After applying ILS</p>
+            </div>
+
+            <p>
+                This paper propses a new edge-preserving smoothing method which smoothes out small details in images and
+                preserves the major edges and structures.
+                Among these approaches, two kinds of methods have been widely developed: weighted average based methods
+                and
+                global optimization based methods. <a href="#ref-1">[1]</a>
+            </p>
+            <p>
+            <div class="row">
+                <div class="one-half column category">
+                    <h5 class="docs-header">Benefits of ILS</h5>
+                    <ul>
+                        <li>High-quality results.</li>
+                        <li>It can produce results with little visible artifacts.</li>
+                        <li>Lower computational cost.</li>
+                        <li>The computation of ILS is simple and highly parallel</li>
+                        <li>The ILS is flexible; it can be modified to handle more applications that require different
+                            smoothing properties
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            </p>
+
+            <div class="row">
+                <h3 class="section-heading" id="results-ILS">Results of ILS</h3>
+                <p class="section-description">After programming the proposed method in the paper and trying different
+                    ways,
+                    it was clear that it works really well in preserving edges compared to all upper smoothing methods.
+                    </br>
+                    You can see below the results of applying Single CPU vs. Parallel CPU using Numpy and Scipy.
+                    The image to the right shows the noise reduced by using ILS.
+                    It is the result of subtraction the smoothed image from the original one.
+                    By simply looking at them, one cannot really find a difference,
+                    however, if you go down to <a href="#exec-time-ils">ILS execution time section</a> you will notice
+                    the
+                    difference.
+
+                </p>
+
+                <div class="row">
+                    <div class="one-half column category" style="text-align: center;">
+                        <h5 class="docs-header">Original Image</h5>
+                        <img class="u-max-full-width" src="images/ils/origin-bird.png">
+                        <p>This image has bright colors, a bird and a background of leaves and tree branches.</p>
+                    </div>
+                    <div class="one-half column category" style="text-align: center;">
+                        <h5 class="docs-header">ILS Smoothed Image</h5>
+                        <img class="u-max-full-width" src="images/ils/smoothed-image-ILS.png">
+                        <p>The smoothing is very remarkable espically of all the background which contains many leaves. 
+                            Also the bird's beak</p>
+                    </div>
+                </div>
+
+                <div class="column category" style="text-align: center;">
+                    <h5 class="docs-header">Comparsion between smoothed image using single and parallel CPU</h5>
+                    <img class="u-max-full-width" src="images/ils/subtraction-smoothed.png">
+                    <p>The image resulted of subtracting smoothed images using single cpu and parallel cpu looks completely black which proves that both results are equal.
+                        And the only difference is in execuation time. 
+                        However, by checking the image with code, it wasn't 100% black.
+                    </p>
+
+                </div>
+            </div>
+
+
+            <h5> ILS Execution Time </h5>
+            <p>It is clear from the results below that the time of parallel execution is faster than one single CPU.
+                I used two differenlt libraries in parallel cpu: numpy and scipy.
+                </br>
+
+                The methods in parallel CPU were faster than the one single cpu.
+                From tests performed on different images, it is clear that scipy outperforms numpy in execution time.
+                The execution time itself highly depends on the image itself.
+                For example, in the purble flower image, the execution time decreased %31 when using numpy and %34 when
+                using scipy.
+                Whereas in the yellow bird, it was 50% and 57% in the same order.
+            </p>
+            <div class="row" id="exec-time-ils">
+                <div class="column category" style="text-align: center;">
+                    <table class="u-full-width">
+                        <thead>
+                            <tr>
+                                <th>Method</th>
+                                <th>Execution Time - Flower</th>
+                                <th>Execution Time - Bird </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Single CPU</td>
+                                <td>2.1222</td>
+                                <td>1.4464</td>
+                            </tr>
+
+                            <tr>
+                                <td>Parallel CPU with Numpy</td>
+                                <td>1.4564</td>
+                                <td>0.8276</td>
+                            </tr>
+
+                            <tr>
+                                <td>Parallel CPU with Scipy</td>
+                                <td>1.3981</td>
+                                <td>0.7352</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h4 class="section-heading" id="results-ILS">More Results of ILS</h4>
+
+            <div class="row">
+                <h5 class="section-heading">Good results</h5>
+                <p>You see here some examples where the ILS algorithm performed very good and was able to smooth large areas of unnecessary detials while preserving edges of the main shapes.</p>
+                <div class="column category" style="text-align: center;">
+                    <img class="u-max-full-width" src="images/ils-results/fish.png">
+                </div>
+                <div class="column category" style="text-align: center;">
+                    <img class="u-max-full-width" src="images/ils-results/lion.png">
+                </div>
+                <div class="column category" style="text-align: center;">
+                    <img class="u-max-full-width" src="images/ils-results/monkey.png">
+                </div>
+                <div class="column category" style="text-align: center;">
+                    <img class="u-max-full-width" src="images/ils-results/coffee.png">
+                </div>
+                <div class="column category" style="text-align: center;">
+                    <img class="u-max-full-width" src="images/ils-results/deer.png">
+                </div>
+                <div class="column category" style="text-align: center;">
+                    <img class="u-max-full-width" src="images/ils-results/veggies.png">
+                </div>
+                <div class="column category" style="text-align: center;">
+                    <img class="u-max-full-width" src="images/ils-results/elephant.png">
+                </div>
+                <div class="column category" style="text-align: center;">
+                    <img class="u-max-full-width" src="images/ils-results/monkeytree.png">
+                </div>
+
+            </div>
+            <div class="row">
+                <h5 class="section-heading">Medium performance results</h5>
+                <p>You see here some examples where the ILS algorithm performed averagly and was able to smooth some areas of the image but not everything.
+                    For example, toy story and the girraffe images could have been smoothed better if we compare them with previous set of images above. 
+                    Same goes for the rest in this set.
+                </p>
+
+                <div class="row">
+                    <div class="column category" style="text-align: center;">
+                        <img class="u-max-full-width" src="images/ils-results/girraffe.png">
+                    </div>
+                    <div class="column category" style="text-align: center;">
+                        <img class="u-max-full-width" src="images/ils-results/koala.png">
+                    </div>
+                    <div class="column category" style="text-align: center;">
+                        <img class="u-max-full-width" src="images/ils-results/toystory.png">
+                    </div>
+                    <div class="column category" style="text-align: center;">
+                        <img class="u-max-full-width" src="images/ils-results/bird.png">
+                    </div>
+                    <div class="column category" style="text-align: center;">
+                        <img class="u-max-full-width" src="images/ils-results/vacc.png">
+                    </div>
+                    <div class="column category" style="text-align: center;">
+                        <img class="u-max-full-width" src="images/ils-results/dolphine.png">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <h5 class="section-heading">Poor results</h5>
+                    <p>You see here some examples where the ILS algorithm performed poorly and failed to reduce the noise. 
+                        The chosen images like the train, lena actress and the couple are extremely noisy. The ILS algorithm improved them a bit however it couldn't completely remove them.
+                        The cow and the hawk images smoothing can be hardly seen. And finally, the corona virus image smoothing effect is trivial.
+                    </p>
+                    <div class="row">
+                        <div class="column category" style="text-align: center;">
+                            <img class="u-max-full-width" src="images/ils-results/lena.png">
+                        </div>
+                        <div class="column category" style="text-align: center;">
+                            <img class="u-max-full-width" src="images/ils-results/couple.png">
+                        </div>
+                        <div class="column category" style="text-align: center;">
+                            <img class="u-max-full-width" src="images/ils-results/cow.png">
+                        </div>
+                        <div class="column category" style="text-align: center;">
+                            <img class="u-max-full-width" src="images/ils-results/hawk.png">
+                        </div>
+                        <div class="column category" style="text-align: center;">
+                            <img class="u-max-full-width" src="images/ils-results/train.png">
+                        </div>
+                        <div class="column category" style="text-align: center;">
+                            <img class="u-max-full-width" src="images/ils-results/corona.png">
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="docs-section" id="code">
+                <h3 class="section-heading">Code</h3>
+                <p class="section-description">
+                    To prgoram the proposed method in the paper, I used Python along with the following libraries:
+                <ul>
+                    <li>matplotlib: to plot the results of smoothed images</li>
+                    <li>pillow: a library used in image processing.</li>
+                    <li>timeit: to measure the execution time of each method and compare it with each other</li>
+                    <li>cv2: OpenCV library; I used it to compare ILS to other smoothing methods in the literature</li>
+                    <li>pyfftw: a pythonic wrapper around FFTW. I used it in multithreaded mode with FFT/IFFT.</li>
+                    <li>scipy: I used it to try out the multi-threaded FFT/IFFT.</li>
+                    <li>numpy: I used it to try out the single-cpu FFT/IFFT. I also used it to handle the arrays and
+                        matrices
+                        operations of an image.
+                    </li>
+                </ul>
+                <pre>
+
+<h3 class="docs-header">Fast Fourier transform</h3>
+In the following block of code, you will see a function for fft and ifft.
+The functions take a parameter called "interface";
+which allows to calculate fft and ifft in three different ways.
+
+<code class="python">
+
+def _fft(img, interface='single'):
+    if interface == 'single':
+        out = np.fft.fft2(img,axes=(0,1))
+    elif interface == 'parallel_numpy':
+        out = pyfftw.interfaces.numpy_fft.fft2(img,axes=(0,1))
+    elif interface == 'parallel_scipy':
+        out = pyfftw.interfaces.scipy_fftpack.fft2(img,axes=(0,1))
+    return out
+
+def _ifft(img, interface='single'):
+    if interface == 'single':
+        out = np.fft.ifft2(img,axes=(0,1)).real
+    elif interface == 'parallel_numpy':
+        out = pyfftw.interfaces.numpy_fft.ifft2(img,axes=(0,1)).real
+    elif interface == 'parallel_scipy':
+        out = pyfftw.interfaces.scipy_fftpack.ifft2(img,axes=(0,1)).real
+    return out
+</code>
+
+<h3 class="docs-header">PSF and OTF </h3>
+- Point spread function (PSF) is impulse response describes the response of an imaging system
+  to a point source or point object.
+- Optical transfer function (OTF) is defined as the Fourier transform of the point spread function.
+
+<code class="python">
+def psf2otf_Dx(outSize, interface):
+    psf = np.zeros(outSize)
+    psf = psf.astype('float32')
+    psf[0, 0] = -1
+    psf[0, -1] = 1
+    otf =  _fft(psf, interface)
+    return otf
+
+def psf2otf_Dy(outSize, interface):
+    psf = np.zeros(outSize)
+    psf = psf.astype('float32')
+    psf[0, 0] = -1
+    psf[-1, 0] = 1
+    otf =  _fft(psf, interface)
+    return otf
+</code>
+
+<h3 class="docs-header">ILS Norm</h3>
+In the code block, you will see the implementation of the ILS method propsed in this paper.
+It could be mainly split into three sections:
+- pre-compute:
+- calculate intermediate variables \mu update, in x-axis and y-axis direction
+- update the smoothed image U
+
+<code class="python">
+
+def ILS_Norm(F,c,lam, interface='single'):
+    N, M, D = F.shape # (768, 1024, 3)
+    sizeI2D = [N, M]
+
+    # --------------------------------------------------------------------------------------------
+    # pre-compute
+    otfFx = psf2otf_Dx(sizeI2D,interface)
+    otfFy = psf2otf_Dy(sizeI2D,interface)
+
+    Denormin = np.abs(otfFx)**2 + np.abs(otfFy)**2  # take the real part and to power of two
+    Denormin = Denormin[:,:, np.newaxis] # add a third axis
+    Denormin = np.repeat(Denormin, D, axis=2) # repeat the same data D=3 times on the third axis=2
+
+    denominator = 1 + 0.5 * c * lam * Denormin
+
+    # --------------------------------------------------------------------------------------------
+    U = F
+    normin1 =  _fft(U, interface)
+    # --------------------------------------------------------------------------------------------
+
+    for i in range(4):
+        ## Step 1:  eq 7 - Intermediate variables \mu update, in x-axis and y-axis direction
+
+        # Gradients delta u on x axis and delta u on y axis
+
+        # image gradient in x direction
+        u_extra_col = (U[:,0,:] - U[:,-1,:])[:,np.newaxis,:]
+        u_extra_row = (U[0,:,:] - U[-1,:,:])[np.newaxis,:,:]
+
+        u_h = np.hstack((np.diff(U,1,1), u_extra_col))
+        u_v = np.vstack((np.diff(U,1,0), u_extra_row))
+
+
+        mu_h = c * u_h - p * u_h * (u_h * u_h + eps)**gamma
+        mu_v = c * u_v - p * u_v * (u_v * u_v + eps)**gamma
+
+
+        ### ---------------------------------------------------------------------------- ##
+        ## Step 2: eq 9 - Update the smoothed image U
+
+        # The diff causes loss in one columns
+        extra_col = (mu_h[:,-1,:] - mu_h[:, 0,:])[:,np.newaxis,:]
+        extra_row = (mu_v[-1,:,:] - mu_v[0,:,:])[np.newaxis,:,:]
+
+        # we calculate the diff - the inverse first order derivative of μxn along x-axis & μyn along y-axis
+        normin2_h = np.hstack((extra_col , - np.diff(mu_h,1,1)))
+        normin2_v = np.vstack((extra_row , - np.diff(mu_v,1,0)))
+
+        fft_normin_h_v = _fft(normin2_h + normin2_v, interface)
+
+        numerator = normin1 + 0.5 * lam * fft_normin_h_v
+
+        FU = numerator / denominator
+        U =  _ifft(FU, interface)
+
+        # U = np.abs(ifft2(FU,axes=(0,1)))
+        normin1 = FU
+
+    return U
+
+</code>
+
+The previous method is applied with the following intial values:
+
+                <code class="python">
+# Constants
+lam = 1
+k = 5
+p = 0.8
+eps = 0.0001
+gamma = 0.5 * p - 1
+c =  p * eps**gamma
+F = read_image('flower.png')
+</code>
+Finally, the method is called for single-cpu as following:
+
+   <code class="python">
+start = timer()
+smoothed1 = ILS_Norm(F,c,lam,interface='single')
+print("ILS_Norm CPU Single:", timer()-start)
+
+show_image(F, smoothed1,t='Smoothed Image Single CPU')
+</code>
+
+And it is called for parallel-cpu (numpy) as following:
+<code class="python">
+start = timer()
+smoothed2 = ILS_Norm(F,c,lam, interface='parallel_numpy')
+print("ILS_Norm CPU Parallel Numpy:", timer()-start)
+
+show_image(F, smoothed2,t='Smoothed Image Parallel Numpy')
+</code>
+And it is called for parallel-cpu (scipy) as following:
+
+<code class="python">
+start = timer()
+smoothed3 = ILS_Norm(F,c,lam,interface='parallel_scipy')
+print("ILS_Norm CPU Parallel Scipy:", timer()-start)
+
+show_image(F, smoothed3,t='Smoothed Image Parallel Scipy')
+</code>
+
+To read an image and normalize its values between zero and one
+
+<code class="python">
+
+def read_image(image_fulll_path):
+    image = Image.open(image_fulll_path) # read the image using PIL
+    im = np.asarray(image) # convert the image into numpy array
+    info = np.iinfo(im.dtype) # get the data type of the input image
+    F = im.astype('float32') / info.max # divide all values by the largest possible value in the datatype
+    return F
+
+</code>
+
+Plotting the images: 
+<code class="python">
+
+# normalize two images and subtract them
+def get_reduced_noise_image(original, smoothed):
+    smoothed= np.int32(smoothed)
+    original= np.int32(original)
+
+    return original - smoothed
+
+# plot reduced noise of two images
+def show_reduced_noise(original, smoothed, t):
+    fig = plt.figure(figsize=(20, 16), dpi=80)
+
+    ax3 = fig.add_subplot(3,3,1)
+
+    reduced_noise = get_reduced_noise_image(original, smoothed)
+    ax3.imshow(reduced_noise)
+    ax3.set_title(t)
+
+    plt.show()
+
+# plot one image
+def show_single_image(img, t=''):
+    plt.figure()
+    plt.imshow(img)
+    plt.title(t)
+
+# plot three images side by side: Origninal, smoothed and the reduced noise
+def show_image(original, smoothed, t):
+    fig = plt.figure(figsize=(20, 16), dpi=80)
+
+    ax1 = fig.add_subplot(3,3,1)
+    ax1.imshow(original)
+    ax1.set_title('Original Image')
+
+    ax2 = fig.add_subplot(3,3,2)
+    ax2.imshow(smoothed)
+    ax2.set_title(t)
+
+    reduced_noise = get_reduced_noise_image(original, smoothed)
+    
+    ax3 = fig.add_subplot(3,3,3)
+    ax3.imshow(reduced_noise)
+    ax3.set_title('Reduced Noise')
+
+    plt.show()
+    
+
+</code>
+</div>
+
+    <div class="docs-section" id="math">
+        <h3 class="section-heading">Math</h3>
+
+        <h4 class="docs-header">Objective Function</h4>
+        <img class="u-max-full-width" src="images/math/objective-function.png">
+
+        <h4 class="docs-header">ILS problem</h4>
+        <p>The first equation; eq-7 which calculates the intermediate variables</p>
+        <img class="u-max-full-width" src="images/math/eq7.png">
+        <p>The second equation, eq-9 which calculates the ILS problem</p>
+        <img class="u-max-full-width" src="images/math/ILS-problem.png">
+
+    </div>
+
+    <div class="docs-section" id="references">
+        <h3 class="section-heading">References</h3>
+        <ul class="popover-list">
+            <li class="popover-item" id="ref-1">
+                <!--A link to this may look like: <a href="#1">[1]</a>-->
+                [1] Wei Liu and Pingping Zhang and Xiaolin Huang and Jie Yang and Chunhua Shen and Ian Reid, Real-time
+                Image Smoothing via Iterative Least Squares, <i> presented at SIGGRAPH 2020,
+                2020</i>.
+            </li>
+
+            <li class="popover-item" id="ref-2">
+                [2] <a
+                    href="https://opencv24-python-tutorials.readthedocs.io/en/stable/py_tutorials/py_imgproc/py_filtering/py_filtering.html">Smoothing
+                Images in OpenCV</a>
+            </li>
+            
+        </ul>
+    </div>
+</div>
+
+</body>
+</html>
